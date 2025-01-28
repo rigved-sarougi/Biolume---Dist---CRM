@@ -1,64 +1,25 @@
-import sqlite3
+from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
 
-def connect_db():
-    return sqlite3.connect("salon_b2b.db")
+DATABASE_URL = "sqlite:///./test.db"  # Update this to your actual database URL
 
-def create_tables():
-    with connect_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT,
-                username TEXT UNIQUE,
-                password TEXT,
-                role TEXT
-            )
-        """)
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS orders (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                distributor TEXT,
-                product_name TEXT,
-                quantity INTEGER,
-                status TEXT DEFAULT 'Pending',
-                remarks TEXT
-            )
-        """)
-        conn.commit()
+# Create an engine instance
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 
-def add_user(name, username, password, role):
-    with connect_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute("INSERT INTO users (name, username, password, role) VALUES (?, ?, ?, ?)", (name, username, password, role))
-        conn.commit()
+# Create a session factory
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-def fetch_users(role=None):
-    with connect_db() as conn:
-        cursor = conn.cursor()
-        if role:
-            cursor.execute("SELECT username FROM users WHERE role = ?", (role,))
-        else:
-            cursor.execute("SELECT username FROM users")
-        return [row[0] for row in cursor.fetchall()]
+# Base class for the models
+Base = declarative_base()
 
-def add_order(distributor, product_name, quantity):
-    with connect_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute("INSERT INTO orders (distributor, product_name, quantity) VALUES (?, ?, ?)", (distributor, product_name, quantity))
-        conn.commit()
+# Function to get a new session
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
-def fetch_orders(username=None):
-    with connect_db() as conn:
-        cursor = conn.cursor()
-        if username:
-            cursor.execute("SELECT * FROM orders WHERE distributor = ?", (username,))
-        else:
-            cursor.execute("SELECT * FROM orders")
-        return cursor.fetchall()
-
-def update_order_status(order_id, status, remarks):
-    with connect_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute("UPDATE orders SET status = ?, remarks = ? WHERE id = ?", (status, remarks, order_id))
-        conn.commit()
+# Create a session object that can be used throughout the app
+session = SessionLocal()
