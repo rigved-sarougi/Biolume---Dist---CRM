@@ -1,65 +1,90 @@
 import streamlit as st
-from database import create_tables, add_user, add_order, update_order_status, fetch_orders, fetch_users
-from utils import authenticate_user
+from datetime import datetime
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy import create_engine
+from models import Order, Subordinate, Notification  # Assuming models are saved in models.py
 
-# Initialize Database
-create_tables()
+# Set up SQLAlchemy session
+engine = create_engine('sqlite:///salon_orders.db')
+Session = sessionmaker(bind=engine)
+session = Session()
 
-# Authentication Section
-st.sidebar.title("Login")
-user_role = st.sidebar.radio("Login As", ["Admin", "Distributor"])
-username = st.sidebar.text_input("Username")
-password = st.sidebar.text_input("Password", type="password")
-login = st.sidebar.button("Login")
+# Add order
+def register_order():
+    st.header("Register New Order")
+    
+    # Inputs for Order Details
+    item_description = st.text_input("Item Description")
+    qty = st.number_input("Quantity", min_value=1)
+    mrp = st.number_input("MRP", min_value=0.0, format="%.2f")
+    discount = st.number_input("Discount", min_value=0.0, format="%.2f")
+    after_discount = mrp - discount
+    total = after_discount * qty
+    
+    order_date = st.date_input("Order Date", min_value=datetime.today())
+    
+    client_name = st.text_input("Client Name")
+    salon_name = st.text_input("Salon Name")
+    contact = st.text_input("Contact")
+    address = st.text_area("Address")
+    
+    # Save Order to Database
+    if st.button("Register Order"):
+        new_order = Order(
+            item_description=item_description,
+            qty=qty,
+            mrp=mrp,
+            discount=discount,
+            after_discount=after_discount,
+            total=total,
+            order_date=datetime.now(),
+            client_name=client_name,
+            salon_name=salon_name,
+            contact=contact,
+            address=address
+        )
+        session.add(new_order)
+        session.commit()
+        st.success("Order Registered Successfully!")
+        
+        # Notify Subordinates
+        subordinates = session.query(Subordinate).all()
+        for sub in subordinates:
+            notification = Notification(
+                subordinate_id=sub.id,
+                message=f"New order registered for {salon_name} - {client_name}",
+                is_read=False,
+                timestamp=datetime.now()
+            )
+            session.add(notification)
+        session.commit()
+        st.info("Notifications Sent to Subordinates.")
 
-if login:
-    user_authenticated, user_info = authenticate_user(username, password, user_role)
-    if user_authenticated:
-        st.sidebar.success(f"Welcome {user_info['name']} ({user_role})")
+# Subordinate Dashboard
+def subordinate_dashboard():
+    st.header("Subordinate Dashboard")
+    subordinates = session.query(Subordinate).all()
+    
+    for sub in subordinates:
+        st.subheader(f"Orders for {sub.name}")
+        
+        notifications = session.query(Notification).filter(Notification.subordinate_id == sub.id, Notification.is_read == False).all()
+        for notification in notifications:
+            st.write(notification.message)
+            if st.button(f"Mark as Read for {sub.name}"):
+                notification.is_read = True
+                session.commit()
+                st.success(f"Marked notification as read for {sub.name}")
+    
+# Main Menu
+def main():
+    menu = ["Register Order", "Subordinate Dashboard"]
+    choice = st.sidebar.selectbox("Select an Option", menu)
+    
+    if choice == "Register Order":
+        register_order()
+    elif choice == "Subordinate Dashboard":
+        subordinate_dashboard()
 
-        if user_role == "Admin":
-            st.title("Admin Dashboard")
-
-            # Section to create distributor accounts
-            st.subheader("Add Distributor")
-            dist_name = st.text_input("Distributor Name")
-            dist_username = st.text_input("Distributor Username")
-            dist_password = st.text_input("Distributor Password", type="password")
-            if st.button("Add Distributor"):
-                add_user(dist_name, dist_username, dist_password, "Distributor")
-                st.success("Distributor added successfully!")
-
-            # Section to register orders
-            st.subheader("Register Order")
-            distributor = st.selectbox("Select Distributor", fetch_users("Distributor"))
-            product_name = st.text_input("Product Name")
-            quantity = st.number_input("Quantity", min_value=1)
-            if st.button("Add Order"):
-                add_order(distributor, product_name, quantity)
-                st.success("Order registered successfully!")
-
-            # View orders
-            st.subheader("All Orders")
-            orders = fetch_orders()
-            st.table(orders)
-
-        elif user_role == "Distributor":
-            st.title("Distributor Dashboard")
-
-            # View assigned orders
-            st.subheader("My Orders")
-            orders = fetch_orders(username)
-            st.table(orders)
-
-            # Update order status
-            st.subheader("Update Order Status")
-            order_id = st.selectbox("Select Order ID", [order["id"] for order in orders])
-            status = st.radio("Status", ["Payment Received", "Order Dispatched", "Order Delivered", "Order Canceled", "Other Issue"])
-            remarks = ""
-            if status == "Other Issue":
-                remarks = st.text_area("Remarks")
-            if st.button("Update Status"):
-                update_order_status(order_id, status, remarks)
-                st.success("Order status updated successfully!")
-    else:
-        st.sidebar.error("Invalid credentials. Please try again.")
+if __name__ == '__main__':
+    main()
