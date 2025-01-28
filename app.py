@@ -1,29 +1,15 @@
 import streamlit as st
-from datetime import datetime
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine
-from models import User, Order, Notification  # Assuming models are saved in models.py
+from models import User, Order, Notification  # Assuming models.py is in the same directory
+from datetime import datetime
 
 # Set up SQLAlchemy session
 engine = create_engine('sqlite:///salon_orders.db')
 Session = sessionmaker(bind=engine)
 session = Session()
 
-# List of available products
-products = [
-    "5 Step Facial - Radiance Revival",
-    "5 Step Facial - Derma Lumin",
-    "5 Step Facial - Cobalin B12",
-    "5 Step Facial - Mucin Glow",
-    "De Tan Single Use - 12 Gms (10 Pcs)",
-    "4 Step Cleanup - Gold Sheen",
-    "4 Step Cleanup - Aqua Splash",
-    "4Step CleanUp - Charcoal Splash",
-    "4 Step Cleanup - Acne Heel",
-    "4 Step Cleanup - Radiat Youth"
-]
-
-# Manually add Admin and Distributor credentials
+# Manually add Admin and Distributor credentials (one-time setup)
 def add_initial_credentials():
     existing_users = session.query(User).all()
     if len(existing_users) == 0:
@@ -79,7 +65,7 @@ def distributor_dashboard():
     
     # View orders assigned to distributor
     st.header("Assigned Orders")
-    orders = session.query(Order).all()  # Adjust this query to show orders assigned to this distributor
+    orders = session.query(Order).filter(Order.distributor_id == st.session_state.user_id).all()
     for order in orders:
         st.write(order)
 
@@ -88,6 +74,19 @@ def register_order():
     st.header("Register New Order")
     
     # Select Product
+    products = [
+        "5 Step Facial - Radiance Revival",
+        "5 Step Facial - Derma Lumin",
+        "5 Step Facial - Cobalin B12",
+        "5 Step Facial - Mucin Glow",
+        "De Tan Single Use - 12 Gms (10 Pcs)",
+        "4 Step Cleanup - Gold Sheen",
+        "4 Step Cleanup - Aqua Splash",
+        "4Step CleanUp - Charcoal Splash",
+        "4 Step Cleanup - Acne Heel",
+        "4 Step Cleanup - Radiat Youth"
+    ]
+    
     product = st.selectbox("Select Product", products)
     
     # Inputs for Order Details
