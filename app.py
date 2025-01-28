@@ -26,6 +26,21 @@ def add_initial_credentials():
     else:
         st.info("Users already exist. Skipping the initial user creation.")
 
+# Predefined Products from the Bill
+def predefined_products():
+    return [
+        {"item": "5 - Step Facial - Radiance Revival", "qty": 10, "mrp": 325.00, "discount": 50.00, "after_discount": 162.50, "total": 1625},
+        {"item": "5 - Step Facial - Derma Lumin", "qty": 10, "mrp": 325.00, "discount": 50.00, "after_discount": 162.50, "total": 1625},
+        {"item": "5 - Step Facial - Cobalin B12", "qty": 10, "mrp": 325.00, "discount": 50.00, "after_discount": 162.50, "total": 1625},
+        {"item": "5 - Step Facial - Mucin Glow", "qty": 10, "mrp": 325.00, "discount": 50.00, "after_discount": 162.50, "total": 1625},
+        {"item": "De Tan Single Use - 12 Gms (10 Pcs)", "qty": 10, "mrp": 599.00, "discount": 65.00, "after_discount": 209.65, "total": 2097},
+        {"item": "4 Step Cleanup - Gold Sheen", "qty": 10, "mrp": 199.00, "discount": 65.00, "after_discount": 69.65, "total": 697},
+        {"item": "4 Step Cleanup - Aqua Splash", "qty": 10, "mrp": 199.00, "discount": 65.00, "after_discount": 69.65, "total": 697},
+        {"item": "4Step CleanUp - Charcoal Splash", "qty": 10, "mrp": 199.00, "discount": 65.00, "after_discount": 69.65, "total": 697},
+        {"item": "4 Step Cleanup - Acne Heel", "qty": 10, "mrp": 199.00, "discount": 65.00, "after_discount": 69.65, "total": 697},
+        {"item": "4 Step Cleanup - Radiat Youth", "qty": 10, "mrp": 199.00, "discount": 65.00, "after_discount": 69.65, "total": 697}
+    ]
+
 # Login function
 def login():
     st.title("Login")
@@ -50,64 +65,75 @@ def login():
 # Admin Dashboard
 def admin_dashboard():
     st.title("Admin Dashboard")
-    
-    # Register new order (same as before)
+
+    # Register new order
     register_order()
 
-    # View all orders
+    # View all orders and assign to a distributor
     st.header("View All Orders")
     orders = session.query(Order).all()
     for order in orders:
         st.write(order)
 
+    # Assign order to distributor
+    st.header("Assign Order to Distributor")
+    distributors = session.query(User).filter(User.role == "Distributor").all()
+    distributor_options = [distributor.username for distributor in distributors]
+    selected_distributor = st.selectbox("Select Distributor", distributor_options)
+
+    order_id = st.text_input("Enter Order ID to Assign")
+    if st.button("Assign Order"):
+        order = session.query(Order).filter(Order.id == order_id).first()
+        if order:
+            distributor = session.query(User).filter(User.username == selected_distributor).first()
+            order.distributor_id = distributor.id
+            session.commit()
+            st.success(f"Order {order_id} assigned to {selected_distributor}")
+        else:
+            st.error("Order ID not found")
+
 # Distributor Dashboard
 def distributor_dashboard():
     st.title("Distributor Dashboard")
     
-    # View orders assigned to distributor (same as before)
+    # View orders assigned to distributor
     st.header("Assigned Orders")
-    orders = session.query(Order).all()  # Adjust this query to show orders assigned to this distributor
+    orders = session.query(Order).filter(Order.distributor_id == st.session_state.user_id).all()
     for order in orders:
         st.write(order)
 
 # Register Order (as before)
 def register_order():
     st.header("Register New Order")
-    
-    # Inputs for Order Details
-    item_description = st.text_input("Item Description")
-    qty = st.number_input("Quantity", min_value=1)
-    mrp = st.number_input("MRP", min_value=0.0, format="%.2f")
-    discount = st.number_input("Discount", min_value=0.0, format="%.2f")
-    after_discount = mrp - discount
-    total = after_discount * qty
-    
-    order_date = st.date_input("Order Date", min_value=datetime.today())
-    
+
+    # Pre-fill the products from the bill
+    products = predefined_products()
+    for product in products:
+        st.write(f"**Item:** {product['item']}")
+        st.write(f"**Quantity:** {product['qty']}")
+        st.write(f"**MRP:** {product['mrp']}")
+        st.write(f"**Discount:** {product['discount']}")
+        st.write(f"**Total after Discount:** {product['after_discount']}")
+        st.write(f"**Total Price:** {product['total']}")
+
     client_name = st.text_input("Client Name")
     salon_name = st.text_input("Salon Name")
     contact = st.text_input("Contact")
     address = st.text_area("Address")
-    
-    # Save Order to Database
+
     if st.button("Register Order"):
+        total_price = sum([product['total'] for product in products])
         new_order = Order(
-            item_description=item_description,
-            qty=qty,
-            mrp=mrp,
-            discount=discount,
-            after_discount=after_discount,
-            total=total,
-            order_date=datetime.now(),
             client_name=client_name,
             salon_name=salon_name,
             contact=contact,
-            address=address
+            address=address,
+            total_price=total_price,
+            order_date=datetime.now()
         )
         session.add(new_order)
         session.commit()
-        st.success("Order Registered Successfully!")
-        
+
         # Notify Distributor
         distributors = session.query(User).filter(User.role == "Distributor").all()
         for distributor in distributors:
@@ -119,6 +145,7 @@ def register_order():
             )
             session.add(notification)
         session.commit()
+        st.success("Order Registered Successfully!")
         st.info("Notifications Sent to Distributors.")
 
 def main():
