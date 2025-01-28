@@ -4,6 +4,14 @@ from sqlalchemy.orm import sessionmaker
 
 Base = declarative_base()
 
+# User Table (Admin or Distributor)
+class User(Base):
+    __tablename__ = 'users'
+    id = Column(Integer, primary_key=True)
+    username = Column(String, unique=True, nullable=False)
+    password = Column(String, nullable=False)
+    role = Column(String)  # Admin or Distributor
+
 # Order Table
 class Order(Base):
     __tablename__ = 'orders'
@@ -20,23 +28,16 @@ class Order(Base):
     contact = Column(String)
     address = Column(String)
 
-# Subordinate Table
-class Subordinate(Base):
-    __tablename__ = 'subordinates'
-    id = Column(Integer, primary_key=True)
-    name = Column(String)
-    role = Column(String)
-
 # Notification Table
 class Notification(Base):
     __tablename__ = 'notifications'
     id = Column(Integer, primary_key=True)
-    subordinate_id = Column(Integer)
+    user_id = Column(Integer)  # Referring to users
     message = Column(String)
     is_read = Column(Boolean, default=False)
     timestamp = Column(DateTime)
 
-# Create an engine and session
+# Create engine and session
 engine = create_engine('sqlite:///salon_orders.db')
 Session = sessionmaker(bind=engine)
 session = Session()
