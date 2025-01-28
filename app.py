@@ -9,6 +9,23 @@ engine = create_engine('sqlite:///salon_orders.db')
 Session = sessionmaker(bind=engine)
 session = Session()
 
+# Manually add Admin and Distributor credentials
+def add_initial_credentials():
+    # Check if there are already users to avoid duplicate entries
+    existing_users = session.query(User).all()
+    if len(existing_users) == 0:
+        admin_user = User(username="admin", password="admin123", role="Admin")
+        distributor1 = User(username="distributor1", password="distributor123", role="Distributor")
+        distributor2 = User(username="distributor2", password="distributor123", role="Distributor")
+
+        session.add(admin_user)
+        session.add(distributor1)
+        session.add(distributor2)
+        session.commit()
+        st.info("Initial admin and distributor users have been added.")
+    else:
+        st.info("Users already exist. Skipping the initial user creation.")
+
 # Login function
 def login():
     st.title("Login")
@@ -105,6 +122,9 @@ def register_order():
         st.info("Notifications Sent to Distributors.")
 
 def main():
+    # Add initial credentials if they don't exist
+    add_initial_credentials()
+
     if "role" not in st.session_state:
         login()
     else:
