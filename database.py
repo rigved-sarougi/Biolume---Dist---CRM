@@ -2,7 +2,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-DATABASE_URL = "sqlite:///./test.db"  # Update this to your actual database URL
+# Use a local SQLite database
+DATABASE_URL = "sqlite:///./biolume.db"  # The file biolume.db will be created in the same directory
 
 # Create an engine instance
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
