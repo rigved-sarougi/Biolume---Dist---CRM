@@ -85,6 +85,7 @@ def register_order():
         "4Step CleanUp - Charcoal Splash",
         "4 Step Cleanup - Acne Heel",
         "4 Step Cleanup - Radiat Youth"
+        "Mold Mask - 24 K Gold"
     ]
     
     product = st.selectbox("Select Product", products)
